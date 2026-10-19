@@ -4,7 +4,11 @@
 
 ## Опис проєкту (одне речення)
 
-Застосунок дозволяє читати свіжі новини [The Guardian](https://open-platform.theguardian.com/) за обраним розділом, переглядати детальні картки статей з обкладинками та зберігати цікаві матеріали для читання на пристрої.
+Застосунок дозволяє читати свіжі новини [The Guardian](https://www.google.com/search?q=https%3A%2F%2Fopen-platform.theguardian.com%2F) за обраним розділом, переглядати детальні картки статей з обкладинками та зберігати цікаві матеріали для читання на пристрої.
+
+## Головна дія користувача (Лабораторна робота №3)
+
+Користувач натискає на перемикач розділу новин (`Усі новини`, `Technology`, `Science`, `Environment`, `Sport`) у верхньому ряді чіпів, після чого стрічка на екрані фільтрується і показує лише статті обраної рубрики (або екран порожнього стану з кнопкою скидання фільтра, якщо в обраному розділі новин немає).
 
 ## Перелік екранів
 
@@ -17,14 +21,14 @@
 
 ## Джерело даних (REST API)
 
-* **API**: [The Guardian Open Platform](https://open-platform.theguardian.com/documentation/) (публічний REST API без OAuth, підтримує навчальний ключ `test` та власний безкоштовний ключ розробника).
+* **API**: [The Guardian Open Platform](https://www.google.com/search?q=https%3A%2F%2Fopen-platform.theguardian.com%2Fdocumentation%2F) (публічний REST API без OAuth, підтримує навчальний ключ `test` та власний безкоштовний ключ розробника).
 * **Тестовий запит**:
   ```text
   https://content.guardianapis.com/search?q=android&show-fields=thumbnail&page-size=20&api-key=test
   ```
 * **Масив об'єктів у JSON-відповіді**: `response.results` (кожен елемент містить поля `id`, `type`, `sectionId`, `sectionName`, `webPublicationDate`, `webTitle`, `webUrl`, `pillarName` та об'єкт `fields`).
 * **Поле із зображенням**: `fields.thumbnail` (повертається за наявності параметра `show-fields=thumbnail`).
-* **Ліміт запитів ([Developer Key](https://open-platform.theguardian.com/access/))**:
+* **Ліміт запитів ([Developer Key](https://www.google.com/search?q=https%3A%2F%2Fopen-platform.theguardian.com%2Faccess%2F))**:
   * До **1 запиту на секунду** (1 call per second).
   * До **500 запитів на добу** (500 calls per day).
 
@@ -33,15 +37,15 @@
 * **Розділ новин за замовчуванням**: зберігається у `DataStore` / `SharedPreferences`, щоб при відкритті застосунку одразу завантажувалась улюблена рубрика.
 * **Збережені статті (закладки)**: зберігаються у локальній базі даних `Room` (заголовок, дата, рубрика, URL мініатюри та посилання на статтю) для швидкого доступу без повторного пошуку.
 
-## Лабораторна робота №2 — Головний екран застосунку
+## Виконані лабораторні роботи
 
-* Описано модель даних `GuardianArticle` та `GuardianFields` (`data class`) із точними назвами полів із JSON-відповіді [The Guardian Search Endpoint](https://open-platform.theguardian.com/documentation/search): `id`, `type`, `sectionId`, `sectionName`, `webPublicationDate`, `webTitle`, `webUrl`, `pillarName`, `fields.thumbnail`.
-* Сформовано список `sampleArticles` із 3 об'єктів окремо від функцій верстки.
-* Зверстано картку новини `ArticleCard` із використанням `Column`, `Row` та `Box` (поверх зображення розташовано бейдж розділу `sectionName` та позначку збереженої статті).
-* Головний екран `NewsFeedScreen` розміщено всередині `Scaffold` із `TopAppBar`.
+* **Лабораторна робота №1**: створено бриф проєкту та початковий екран.
+* **Лабораторна робота №2**: описано модель даних `GuardianArticle` та `GuardianFields` відповідно до схеми [The Guardian Search Endpoint](https://www.google.com/search?q=https%3A%2F%2Fopen-platform.theguardian.com%2Fdocumentation%2Fsearch), зверстано картку статті `ArticleCard` (`Box`, `Column`, `Row`) у `Scaffold` із `TopAppBar`.
+* **Лабораторна робота №3**: розширено список `sampleArticles` до 6 статей у різних рубриках (`sectionName`), реалізовано підняття стану (`selectedSection` через `rememberSaveable`) у `NewsFeedScreen`, додано безстановий компонент ряду перемикачів `SectionFilterRow(sections, selectedSection, onSectionSelected)` та опрацьовано стан порожнього результату `EmptySectionState` (при виборі рубрики `Sport`).
 
 ## Відкрита декларація використання ШІ (AI Disclosure)
 
 Відповідно до правил курсу зазначається використання ШІ-асистента **Google Gemini** під час виконання лабораторних робіт:
 * **Лабораторна робота №1**: структурування опису брифа проєкту у `README.md` та початкового екрана-візитівки.
 * **Лабораторна робота №2**: генерація векторних ілюстрацій-заглушок (`news_thumb_1.xml`, `news_thumb_2.xml`, `news_thumb_3.xml`) для `res/drawable`, узгодження полів `data class GuardianArticle` зі схемою відповіді The Guardian API та допомога з версткою компонента `ArticleCard` у Jetpack Compose.
+* **Лабораторна робота №3**: розширення тестового набору `sampleArticles` до 6 елементів та реалізація патерну State Hoisting для фільтрації новин за розділом (`SectionFilterRow`) і відображення порожнього стану (`EmptySectionState`).

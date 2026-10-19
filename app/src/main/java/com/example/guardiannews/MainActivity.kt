@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,9 +22,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -32,6 +36,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -46,15 +55,20 @@ import com.example.guardiannews.ui.theme.GuardianNewsTheme
 
 /*
  * Примітка щодо використання ШІ (AI Disclosure):
- * Під час виконання Лабораторної роботи №2 використовувався ШІ-асистент Gemini
- * для проєктування структури data class відповідно до JSON-схеми The Guardian API,
- * створення векторних ілюстрацій-заглушок у res/drawable та структурування
- * базової верстки карток новин у Jetpack Compose (Scaffold, Column, Row, Box).
+ * Під час виконання Лабораторних робіт №2–3 використовувався ШІ-асистент Google Gemini
+ * для узгодження data class GuardianArticle зі схемою The Guardian API, розширення
+ * тестового списку до 6 об'єктів та реалізації підняття стану (State Hoisting)
+ * для фільтрації новин за розділом (SectionFilterRow) і стану порожнього результату.
+ *
+ * Головна дія користувача (Лабораторна робота №3):
+ * Користувач натискає на перемикач розділу новин (All, Technology, Science, Environment, Sport)
+ * у верхній панелі, після чого список на екрані фільтрується і відображає лише статті
+ * обраної рубрики або повідомлення про те, що в цьому розділі новин не знайдено.
  */
 
 // ============================================================================
 // 1. МОДЕЛЬ ДАНИХ (назви полів відповідають JSON-відповіді The Guardian API)
-// У JSON-відповіді API масив лежить у response.results[], а картинка — у fields.thumbnail
+// Поле розрізнення об'єктів для фільтрації: sectionName (та sectionId)
 // ============================================================================
 
 data class GuardianFields(
@@ -66,7 +80,7 @@ data class GuardianArticle(
     val id: String,
     val type: String,
     val sectionId: String,
-    val sectionName: String,
+    val sectionName: String, // Поле, за яким об'єкти розрізняються при фільтрації розділів
     val webPublicationDate: String,
     val webTitle: String,
     val webUrl: String,
@@ -76,8 +90,17 @@ data class GuardianArticle(
 )
 
 // ============================================================================
-// 2. СПИСОК ОБ'ЄКТІВ ОКРЕМО ВІД ВЕРСТКИ (3 статті для головного екрана)
+// 2. СПИСОК ВАРІАНТІВ ПЕРЕМИКАЧА ТА 6 ОБ'ЄКТІВ НОВИН ОКРЕМО ВІД ВЕРСТКИ
+// Розділ "Sport" навмисно не має статей у списку, щоб показати стан "Нічого не знайдено"
 // ============================================================================
+
+val availableSections = listOf(
+    "All",
+    "Technology",
+    "Science",
+    "Environment",
+    "Sport"
+)
 
 val sampleArticles = listOf(
     GuardianArticle(
@@ -90,10 +113,25 @@ val sampleArticles = listOf(
         webUrl = "https://www.theguardian.com/technology/2026/oct/19/android-16-security-ai-features",
         pillarName = "News",
         fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-tech-thumb.jpg",
+            thumbnail = "https://media.guim.co.uk/sample-tech-thumb-1.jpg",
             thumbnailRes = R.drawable.news_thumb_1
         ),
         isSaved = true
+    ),
+    GuardianArticle(
+        id = "technology/2026/oct/18/open-source-mobile-browsers-eu-regulations",
+        type = "article",
+        sectionId = "technology",
+        sectionName = "Technology",
+        webPublicationDate = "2026-10-18T11:20:00Z",
+        webTitle = "Нові стандарти відкритих мобільних екосистем пришвидшують роботу застосунків",
+        webUrl = "https://www.theguardian.com/technology/2026/oct/18/open-source-mobile-browsers-eu-regulations",
+        pillarName = "News",
+        fields = GuardianFields(
+            thumbnail = "https://media.guim.co.uk/sample-tech-thumb-2.jpg",
+            thumbnailRes = R.drawable.news_thumb_1
+        ),
+        isSaved = false
     ),
     GuardianArticle(
         id = "science/2026/oct/18/european-space-telescope-new-exoplanet-discovery",
@@ -105,10 +143,25 @@ val sampleArticles = listOf(
         webUrl = "https://www.theguardian.com/science/2026/oct/18/european-space-telescope-new-exoplanet-discovery",
         pillarName = "News",
         fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-science-thumb.jpg",
+            thumbnail = "https://media.guim.co.uk/sample-science-thumb-1.jpg",
             thumbnailRes = R.drawable.news_thumb_2
         ),
         isSaved = false
+    ),
+    GuardianArticle(
+        id = "science/2026/oct/16/quantum-sensors-navigation-without-satellites",
+        type = "article",
+        sectionId = "science",
+        sectionName = "Science",
+        webPublicationDate = "2026-10-16T16:05:00Z",
+        webTitle = "Фізики протестували квантові сенсори для точної навігації без супутникового сигналу",
+        webUrl = "https://www.theguardian.com/science/2026/oct/16/quantum-sensors-navigation-without-satellites",
+        pillarName = "News",
+        fields = GuardianFields(
+            thumbnail = "https://media.guim.co.uk/sample-science-thumb-2.jpg",
+            thumbnailRes = R.drawable.news_thumb_2
+        ),
+        isSaved = true
     ),
     GuardianArticle(
         id = "environment/2026/oct/17/clean-energy-grids-record-growth-europe",
@@ -120,15 +173,30 @@ val sampleArticles = listOf(
         webUrl = "https://www.theguardian.com/environment/2026/oct/17/clean-energy-grids-record-growth-europe",
         pillarName = "News",
         fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-env-thumb.jpg",
+            thumbnail = "https://media.guim.co.uk/sample-env-thumb-1.jpg",
             thumbnailRes = R.drawable.news_thumb_3
         ),
         isSaved = true
+    ),
+    GuardianArticle(
+        id = "environment/2026/oct/15/carpathian-forest-restoration-monitoring-drones",
+        type = "article",
+        sectionId = "environment",
+        sectionName = "Environment",
+        webPublicationDate = "2026-10-15T12:10:00Z",
+        webTitle = "Супутниковий моніторинг допомагає відновлювати гірські лісові екосистеми у Карпатах",
+        webUrl = "https://www.theguardian.com/environment/2026/oct/15/carpathian-forest-restoration-monitoring-drones",
+        pillarName = "News",
+        fields = GuardianFields(
+            thumbnail = "https://media.guim.co.uk/sample-env-thumb-2.jpg",
+            thumbnailRes = R.drawable.news_thumb_3
+        ),
+        isSaved = false
     )
 )
 
 // ============================================================================
-// 3. ГОЛОВНА АКТИВНІСТЬ ТА ЕКРАН СТРІЧКИ НОВИН
+// 3. ГОЛОВНА АКТИВНІСТЬ ТА ЕКРАН СТРІЧКИ З ПІДНЯТИМ СТАНОМ (STATE HOISTING)
 // ============================================================================
 
 class MainActivity : ComponentActivity() {
@@ -139,7 +207,7 @@ class MainActivity : ComponentActivity() {
             GuardianNewsTheme {
                 NewsFeedScreen(
                     articles = sampleArticles,
-                    defaultSection = "Technology"
+                    sections = availableSections
                 )
             }
         }
@@ -150,9 +218,19 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NewsFeedScreen(
     articles: List<GuardianArticle>,
-    defaultSection: String,
+    sections: List<String>,
     modifier: Modifier = Modifier
 ) {
+    // Єдиний стан обраного розділу, піднятий на рівень Composable екрана
+    var selectedSection by rememberSaveable { mutableStateOf(sections.first()) }
+
+    // Фільтрація списку статей за обраним розділом
+    val filteredArticles = if (selectedSection == "All") {
+        articles
+    } else {
+        articles.filter { it.sectionName.equals(selectedSection, ignoreCase = true) }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -165,7 +243,7 @@ fun NewsFeedScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Стрічка новин · Розділ: $defaultSection",
+                            text = "Розділ: $selectedSection · Статей: ${filteredArticles.size}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
@@ -182,19 +260,133 @@ fun NewsFeedScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            articles.forEach { article ->
-                ArticleCard(article = article)
+            // Ряд перемикачів угорі екрана (отримує список варіантів, обране значення і лямбду)
+            SectionFilterRow(
+                sections = sections,
+                selectedSection = selectedSection,
+                onSectionSelected = { newSection ->
+                    selectedSection = newSection
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // Відображення відфільтрованого списку або повідомлення "Нічого не знайдено"
+            if (filteredArticles.isEmpty()) {
+                EmptySectionState(
+                    sectionName = selectedSection,
+                    onResetFilter = { selectedSection = "All" },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp)
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    filteredArticles.forEach { article ->
+                        ArticleCard(article = article)
+                    }
+                }
             }
         }
     }
 }
 
 // ============================================================================
-// 4. КАРТКА ОБ'ЄКТА (використовує Box, Column, Row та модифікатори розмірів/відступів)
+// 4. РЯД ПЕРЕМИКАЧІВ РОЗДІЛІВ (Stateless Composable: варіанти + обране + лямбда)
+// ============================================================================
+
+@Composable
+fun SectionFilterRow(
+    sections: List<String>,
+    selectedSection: String,
+    onSectionSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        sections.forEach { section ->
+            val isSelected = section == selectedSection
+            FilterChip(
+                selected = isSelected,
+                onClick = { onSectionSelected(section) },
+                label = {
+                    Text(
+                        text = if (section == "All") "Усі новини" else section,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }
+    }
+}
+
+// ============================================================================
+// 5. СТАН "НІЧОГО НЕ ЗНАЙДЕНО" (коли в обраному розділі немає статей)
+// ============================================================================
+
+@Composable
+fun EmptySectionState(
+    sectionName: String,
+    onResetFilter: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Новин не знайдено",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "У розділі «$sectionName» наразі немає збережених або завантажених статей. Спробуйте обрати іншу рубрику.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Button(onClick = onResetFilter) {
+                    Text(text = "Показати всі новини")
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 6. КАРТКА ОБ'ЄКТА (Box + Column + Row)
 // ============================================================================
 
 @Composable
@@ -269,7 +461,6 @@ fun ArticleCard(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                // Назва об'єкта (webTitle з API)
                 Text(
                     text = article.webTitle,
                     style = MaterialTheme.typography.titleMedium,
@@ -283,7 +474,7 @@ fun ArticleCard(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Row №1: Характеристика 1 (Рубрика / Pillar) та Характеристика 2 (Дата публікації)
+                // Row №1: Рубрика та дата публікації
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -311,7 +502,7 @@ fun ArticleCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Row №2: Характеристика 3 (Тип матеріалу з API та локальний статус)
+                // Row №2: Тип матеріалу та локальний статус
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -354,7 +545,7 @@ fun NewsFeedScreenPreview() {
     GuardianNewsTheme {
         NewsFeedScreen(
             articles = sampleArticles,
-            defaultSection = "Technology"
+            sections = availableSections
         )
     }
 }
