@@ -41,7 +41,8 @@
 
 * **Лабораторна робота №1**: створено бриф проєкту та початковий екран.
 * **Лабораторна робота №2**: описано модель даних `GuardianArticle` та `GuardianFields` відповідно до схеми [The Guardian Search Endpoint](https://www.google.com/search?q=https%3A%2F%2Fopen-platform.theguardian.com%2Fdocumentation%2Fsearch), зверстано картку статті `ArticleCard` (`Box`, `Column`, `Row`) у `Scaffold` із `TopAppBar`.
-* **Лабораторна робота №3**: розширено список `sampleArticles` до 6 статей у різних рубриках (`sectionName`), реалізовано підняття стану (`selectedSection` через `rememberSaveable`) у `NewsFeedScreen`, додано безстановий компонент ряду перемикачів `SectionFilterRow(sections, selectedSection, onSectionSelected)` та опрацьовано стан порожнього результату `EmptySectionState` (при виборі рубрики `Sport`).
+* **Лабораторна робота №3**: розширено список `sampleArticles` до 6 статей у різних рубриках (`sectionName`), додано безстановий компонент ряду перемикачів `SectionFilterRow` та опрацьовано стан порожнього результату `EmptySectionState` (при виборі рубрики `Sport`).
+* **Лабораторна робота №4**: стан головного екрана описано окремим незмінним `data class NewsFeedUiState` з полями `val` та перенесено у `NewsFeedViewModel` (`private val _uiState = MutableStateFlow(...)` і публічний `val uiState: StateFlow<NewsFeedUiState>`). Зміни виконуються через `copy()` у методах-подіях `selectSection()` та `resetFilter()`, отримання `ViewModel` у Composable реалізовано штатною функцією `viewModel()`, а `remember` для стану вибору прибрано з екрана.
 
 ## Відкрита декларація використання ШІ (AI Disclosure)
 
@@ -49,3 +50,4 @@
 * **Лабораторна робота №1**: структурування опису брифа проєкту у `README.md` та початкового екрана-візитівки.
 * **Лабораторна робота №2**: генерація векторних ілюстрацій-заглушок (`news_thumb_1.xml`, `news_thumb_2.xml`, `news_thumb_3.xml`) для `res/drawable`, узгодження полів `data class GuardianArticle` зі схемою відповіді The Guardian API та допомога з версткою компонента `ArticleCard` у Jetpack Compose.
 * **Лабораторна робота №3**: розширення тестового набору `sampleArticles` до 6 елементів та реалізація патерну State Hoisting для фільтрації новин за розділом (`SectionFilterRow`) і відображення порожнього стану (`EmptySectionState`).
+* **Лабораторна робота №4**: перенесення стану екрана у `NewsFeedViewModel` із незмінним `data class NewsFeedUiState`, інкапсуляцією через `StateFlow` та оновленням стану методом `copy()`.

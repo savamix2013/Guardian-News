@@ -36,10 +36,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,24 +49,24 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.guardiannews.ui.theme.GuardianNewsTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /*
  * Примітка щодо використання ШІ (AI Disclosure):
- * Під час виконання Лабораторних робіт №2–3 використовувався ШІ-асистент Google Gemini
- * для узгодження data class GuardianArticle зі схемою The Guardian API, розширення
- * тестового списку до 6 об'єктів та реалізації підняття стану (State Hoisting)
- * для фільтрації новин за розділом (SectionFilterRow) і стану порожнього результату.
- *
- * Головна дія користувача (Лабораторна робота №3):
- * Користувач натискає на перемикач розділу новин (All, Technology, Science, Environment, Sport)
- * у верхній панелі, після чого список на екрані фільтрується і відображає лише статті
- * обраної рубрики або повідомлення про те, що в цьому розділі новин не знайдено.
+ * Під час виконання Лабораторної роботи №4 використовувався ШІ-асистент Google Gemini
+ * для винесення стану головного екрана в окремий незмінний data class NewsFeedUiState,
+ * реалізації NewsFeedViewModel із захищеним від зовнішнього запису StateFlow,
+ * оновлення стану через copy() та підключення ViewModel у Composable штатним методом viewModel().
  */
 
 // ============================================================================
 // 1. МОДЕЛЬ ДАНИХ (назви полів відповідають JSON-відповіді The Guardian API)
-// Поле розрізнення об'єктів для фільтрації: sectionName (та sectionId)
 // ============================================================================
 
 data class GuardianFields(
@@ -80,7 +78,7 @@ data class GuardianArticle(
     val id: String,
     val type: String,
     val sectionId: String,
-    val sectionName: String, // Поле, за яким об'єкти розрізняються при фільтрації розділів
+    val sectionName: String,
     val webPublicationDate: String,
     val webTitle: String,
     val webUrl: String,
@@ -90,8 +88,7 @@ data class GuardianArticle(
 )
 
 // ============================================================================
-// 2. СПИСОК ВАРІАНТІВ ПЕРЕМИКАЧА ТА 6 ОБ'ЄКТІВ НОВИН ОКРЕМО ВІД ВЕРСТКИ
-// Розділ "Sport" навмисно не має статей у списку, щоб показати стан "Нічого не знайдено"
+// 2. ПОЧАТКОВІ ДАНІ (6 ОБ'ЄКТІВ ТА СПИСОК РОЗДІЛІВ)
 // ============================================================================
 
 val availableSections = listOf(
@@ -196,7 +193,49 @@ val sampleArticles = listOf(
 )
 
 // ============================================================================
-// 3. ГОЛОВНА АКТИВНІСТЬ ТА ЕКРАН СТРІЧКИ З ПІДНЯТИМ СТАНОМ (STATE HOISTING)
+// 3. ОКРЕМИЙ DATA CLASS СТАНУ ЕКРАНА З ПОЛЯМИ VAL ТА VIEWMODEL (Лабораторна №4)
+// ============================================================================
+
+data class NewsFeedUiState(
+    val sections: List<String> = availableSections,
+    val selectedSection: String = availableSections.first(),
+    val allArticles: List<GuardianArticle> = sampleArticles,
+    val filteredArticles: List<GuardianArticle> = sampleArticles
+)
+
+class NewsFeedViewModel : ViewModel() {
+
+    // Стан закритий від запису ззовні (private MutableStateFlow)
+    private val _uiState = MutableStateFlow(NewsFeedUiState())
+
+    // Назовні відкритий лише потік для читання (StateFlow)
+    val uiState: StateFlow<NewsFeedUiState> = _uiState.asStateFlow()
+
+    // Функція-подія для вибору розділу (змінює стан виключно через copy())
+    fun selectSection(section: String) {
+        _uiState.update { currentState ->
+            val filtered = if (section == "All") {
+                currentState.allArticles
+            } else {
+                currentState.allArticles.filter { article ->
+                    article.sectionName.equals(section, ignoreCase = true)
+                }
+            }
+            currentState.copy(
+                selectedSection = section,
+                filteredArticles = filtered
+            )
+        }
+    }
+
+    // Функція-подія для скидання фільтра на початковий розділ "All"
+    fun resetFilter() {
+        selectSection("All")
+    }
+}
+
+// ============================================================================
+// 4. ГОЛОВНА АКТИВНІСТЬ ТА ЕКРАН СТРІЧКИ (БЕЗ remember ДЛЯ СТАНУ ЕКРАНА)
 // ============================================================================
 
 class MainActivity : ComponentActivity() {
@@ -205,32 +244,38 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GuardianNewsTheme {
-                NewsFeedScreen(
-                    articles = sampleArticles,
-                    sections = availableSections
-                )
+                // ViewModel отримується всередині NewsFeedScreen штатним способом viewModel(),
+                // а не створюється конструктором
+                NewsFeedScreen()
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsFeedScreen(
-    articles: List<GuardianArticle>,
-    sections: List<String>,
+    modifier: Modifier = Modifier,
+    newsViewModel: NewsFeedViewModel = viewModel()
+) {
+    // Підписка на незмінний стан із ViewModel (remember для стану вибору прибрано з екрана)
+    val uiState by newsViewModel.uiState.collectAsState()
+
+    NewsFeedContent(
+        uiState = uiState,
+        onSectionSelected = newsViewModel::selectSection,
+        onResetFilter = newsViewModel::resetFilter,
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NewsFeedContent(
+    uiState: NewsFeedUiState,
+    onSectionSelected: (String) -> Unit,
+    onResetFilter: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Єдиний стан обраного розділу, піднятий на рівень Composable екрана
-    var selectedSection by rememberSaveable { mutableStateOf(sections.first()) }
-
-    // Фільтрація списку статей за обраним розділом
-    val filteredArticles = if (selectedSection == "All") {
-        articles
-    } else {
-        articles.filter { it.sectionName.equals(selectedSection, ignoreCase = true) }
-    }
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -243,7 +288,7 @@ fun NewsFeedScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Розділ: $selectedSection · Статей: ${filteredArticles.size}",
+                            text = "Розділ: ${uiState.selectedSection} · Статей: ${uiState.filteredArticles.size}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
@@ -263,11 +308,9 @@ fun NewsFeedScreen(
         ) {
             // Ряд перемикачів угорі екрана (отримує список варіантів, обране значення і лямбду)
             SectionFilterRow(
-                sections = sections,
-                selectedSection = selectedSection,
-                onSectionSelected = { newSection ->
-                    selectedSection = newSection
-                },
+                sections = uiState.sections,
+                selectedSection = uiState.selectedSection,
+                onSectionSelected = onSectionSelected,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -276,10 +319,10 @@ fun NewsFeedScreen(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             // Відображення відфільтрованого списку або повідомлення "Нічого не знайдено"
-            if (filteredArticles.isEmpty()) {
+            if (uiState.filteredArticles.isEmpty()) {
                 EmptySectionState(
-                    sectionName = selectedSection,
-                    onResetFilter = { selectedSection = "All" },
+                    sectionName = uiState.selectedSection,
+                    onResetFilter = onResetFilter,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(24.dp)
@@ -292,7 +335,7 @@ fun NewsFeedScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    filteredArticles.forEach { article ->
+                    uiState.filteredArticles.forEach { article ->
                         ArticleCard(article = article)
                     }
                 }
@@ -302,7 +345,7 @@ fun NewsFeedScreen(
 }
 
 // ============================================================================
-// 4. РЯД ПЕРЕМИКАЧІВ РОЗДІЛІВ (Stateless Composable: варіанти + обране + лямбда)
+// 5. РЯД ПЕРЕМИКАЧІВ РОЗДІЛІВ (Stateless Composable: варіанти + обране + лямбда)
 // ============================================================================
 
 @Composable
@@ -338,7 +381,7 @@ fun SectionFilterRow(
 }
 
 // ============================================================================
-// 5. СТАН "НІЧОГО НЕ ЗНАЙДЕНО" (коли в обраному розділі немає статей)
+// 6. СТАН "НІЧОГО НЕ ЗНАЙДЕНО" (коли в обраному розділі немає статей)
 // ============================================================================
 
 @Composable
@@ -386,7 +429,7 @@ fun EmptySectionState(
 }
 
 // ============================================================================
-// 6. КАРТКА ОБ'ЄКТА (Box + Column + Row)
+// 7. КАРТКА ОБ'ЄКТА (Box + Column + Row)
 // ============================================================================
 
 @Composable
@@ -543,9 +586,10 @@ fun ArticleCard(
 @Composable
 fun NewsFeedScreenPreview() {
     GuardianNewsTheme {
-        NewsFeedScreen(
-            articles = sampleArticles,
-            sections = availableSections
+        NewsFeedContent(
+            uiState = NewsFeedUiState(),
+            onSectionSelected = {},
+            onResetFilter = {}
         )
     }
 }
