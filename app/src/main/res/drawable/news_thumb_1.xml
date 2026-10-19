@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="220dp"
+    android:viewportWidth="400"
+    android:viewportHeight="220">
+    <!-- Фон у стилі Technology -->
+    <path
+        android:fillColor="#0A387D"
+        android:pathData="M0,0h400v220h-400z" />
+    <path
+        android:fillColor="#1554B4"
+        android:pathData="M240,0 L400,0 L400,220 L140,220 Z" />
+    <!-- Декоративні кола та іконка смартфона/чіпа -->
+    <path
+        android:fillColor="#2979FF"
+        android:pathData="M310,110m-65,0a65,65 0,1 1,130 0a65,65 0,1 1,-130 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M165,45h70c8,0 14,6 14,14v102c0,8 -6,14 -14,14h-70c-8,0 -14,-6 -14,-14v-102c0,-8 6,-14 14,-14z" />
+    <path
+        android:fillColor="#0A387D"
+        android:pathData="M167,62h66v82h-66z" />
+    <path
+        android:fillColor="#FFE500"
+        android:pathData="M185,88h30v30h-30z" />
+    <path
+        android:fillColor="#0A387D"
+        android:pathData="M194,152h12v6h-12z" />
+</vector>

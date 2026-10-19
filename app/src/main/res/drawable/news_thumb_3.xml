@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="220dp"
+    android:viewportWidth="400"
+    android:viewportHeight="220">
+    <!-- Фон у стилі Environment / Зелена енергетика -->
+    <path
+        android:fillColor="#1B5E20"
+        android:pathData="M0,0h400v220h-400z" />
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M0,130 Q140,85 280,135 T400,120 L400,220 L0,220 Z" />
+    <path
+        android:fillColor="#43A047"
+        android:pathData="M0,165 Q220,125 400,170 L400,220 L0,220 Z" />
+    <!-- Сонце -->
+    <path
+        android:fillColor="#FFE500"
+        android:pathData="M115,75m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0" />
+    <!-- Вітряк -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M276,85h8v95h-8z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M280,85 L240,55 L246,48 L280,78 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M280,85 L322,60 L326,68 L280,92 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M276,85 L270,132 L280,132 L284,85 Z" />
+</vector>

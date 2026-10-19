@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="220dp"
+    android:viewportWidth="400"
+    android:viewportHeight="220">
+    <!-- Фон у стилі Science / Космос -->
+    <path
+        android:fillColor="#1A1B4B"
+        android:pathData="M0,0h400v220h-400z" />
+    <path
+        android:fillColor="#2E3178"
+        android:pathData="M0,150 Q200,90 400,160 L400,220 L0,220 Z" />
+    <!-- Планета та орбіта -->
+    <path
+        android:fillColor="#FF7043"
+        android:pathData="M200,105m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0" />
+    <path
+        android:fillColor="#FFAB91"
+        android:pathData="M182,88m-14,0a14,14 0,1 1,28 0a14,14 0,1 1,-28 0" />
+    <path
+        android:fillColor="#FFE500"
+        android:pathData="M95,55m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M310,65m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M125,145m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+</vector>

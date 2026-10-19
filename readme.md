@@ -22,20 +22,26 @@
   ```text
   https://content.guardianapis.com/search?q=android&show-fields=thumbnail&page-size=20&api-key=test
   ```
-* **Масив об'єктів у JSON-відповіді**: `response.results` (кожен елемент містить поля `id`, `sectionName`, `webPublicationDate`, `webTitle`, `webUrl` та об'єкт `fields`).
+* **Масив об'єктів у JSON-відповіді**: `response.results` (кожен елемент містить поля `id`, `type`, `sectionId`, `sectionName`, `webPublicationDate`, `webTitle`, `webUrl`, `pillarName` та об'єкт `fields`).
 * **Поле із зображенням**: `fields.thumbnail` (повертається за наявності параметра `show-fields=thumbnail`).
 * **Ліміт запитів ([Developer Key](https://open-platform.theguardian.com/access/))**:
   * До **1 запиту на секунду** (1 call per second).
   * До **500 запитів на добу** (500 calls per day).
-  * *Примітка для Лабораторної роботи №10*: через обмеження у 1 запит/сек під час одночасних (паралельних) запитів на тестовому/безкоштовному ключі сервер може повертати код `429 Too Many Requests`, тому для паралельних запитів буде використано чергу або обмеження конкурентності.
 
 ## Що зберігається локально на пристрої
 
 * **Розділ новин за замовчуванням**: зберігається у `DataStore` / `SharedPreferences`, щоб при відкритті застосунку одразу завантажувалась улюблена рубрика.
 * **Збережені статті (закладки)**: зберігаються у локальній базі даних `Room` (заголовок, дата, рубрика, URL мініатюри та посилання на статтю) для швидкого доступу без повторного пошуку.
 
-## Технологічний стек
+## Лабораторна робота №2 — Головний екран застосунку
 
-* **Мова**: Kotlin
-* **UI**: Jetpack Compose (Material 3)
-* **Збірка**: Gradle (Kotlin DSL)
+* Описано модель даних `GuardianArticle` та `GuardianFields` (`data class`) із точними назвами полів із JSON-відповіді [The Guardian Search Endpoint](https://open-platform.theguardian.com/documentation/search): `id`, `type`, `sectionId`, `sectionName`, `webPublicationDate`, `webTitle`, `webUrl`, `pillarName`, `fields.thumbnail`.
+* Сформовано список `sampleArticles` із 3 об'єктів окремо від функцій верстки.
+* Зверстано картку новини `ArticleCard` із використанням `Column`, `Row` та `Box` (поверх зображення розташовано бейдж розділу `sectionName` та позначку збереженої статті).
+* Головний екран `NewsFeedScreen` розміщено всередині `Scaffold` із `TopAppBar`.
+
+## Відкрита декларація використання ШІ (AI Disclosure)
+
+Відповідно до правил курсу зазначається використання ШІ-асистента **Google Gemini** під час виконання лабораторних робіт:
+* **Лабораторна робота №1**: структурування опису брифа проєкту у `README.md` та початкового екрана-візитівки.
+* **Лабораторна робота №2**: генерація векторних ілюстрацій-заглушок (`news_thumb_1.xml`, `news_thumb_2.xml`, `news_thumb_3.xml`) для `res/drawable`, узгодження полів `data class GuardianArticle` зі схемою відповіді The Guardian API та допомога з версткою компонента `ArticleCard` у Jetpack Compose.
