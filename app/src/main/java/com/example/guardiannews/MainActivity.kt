@@ -1,5 +1,6 @@
 package com.example.guardiannews
 
+import android.app.Application
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,7 +60,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -69,20 +73,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /*
  * Примітка щодо використання ШІ (AI Disclosure):
- * Під час виконання Лабораторної роботи №5 використовувався ШІ-асистент Google Gemini
- * для налаштування навігації Jetpack Navigation Compose (NavHost), передачі параметра id
- * у маршрут екрана деталей, розширення моделі GuardianFields додатковими полями The Guardian API
- * (trailText, byline, wordcount, bodyText) та верстки екрана деталей ArticleDetailScreen
- * із обробкою випадку, коли об'єкт за id не знайдено.
+ * Під час виконання Лабораторних робіт №1–6 використовувався ШІ-асистент Google Gemini
+ * для проєктування моделі GuardianArticle, верстки Jetpack Compose, налаштування ViewModel,
+ * навігації NavHost та збереження розділу за замовчуванням у Preferences DataStore.
  */
 
 // ============================================================================
 // 1. МОДЕЛЬ ДАНИХ (поля відповідають JSON-відповіді The Guardian API)
-// Додано поля для екрана деталей, яких немає на картці в списку:
-// fields.trailText, fields.byline, fields.wordcount, fields.bodyText, webUrl, apiUrl
 // ============================================================================
 
 data class GuardianFields(
@@ -109,7 +110,7 @@ data class GuardianArticle(
 )
 
 // ============================================================================
-// 2. ПОЧАТКОВІ ДАНІ (6 ОБ'ЄКТІВ ІЗ ПОВНИМ ТЕКСТОМ ДЛЯ СКРОЛУ НА ЕКРАНІ ДЕТАЛЕЙ)
+// 2. ПОЧАТКОВІ ДАНІ (6 ОБ'ЄКТІВ ТА СПИСОК РОЗДІЛІВ)
 // ============================================================================
 
 val availableSections = listOf(
@@ -140,11 +141,9 @@ val sampleArticles = listOf(
             bodyText = """
                 Оновлення платформи Android приносить суттєві зміни в архітектуру безпеки мобільних пристроїв. Головний акцент зроблено на локальному виконанні обчислень безпосередньо на процесорі смартфона, щоб чутливі дані користувача ніколи не залишали межі пристрою.
 
-                За словами інженерів проєкту Android Open Source Project, нова підсистема Private Compute Core відокремлює алгоритми аналізу тексту, зображень та голосових команд у захищену пісочницю без прямого доступу до мережі Інтернет. Будь-яка взаємодія із зовнішніми сервісами відбувається лише через явно контрольовані системні інтерфейси.
+                За словами інженерів проєкту Android Open Source Project, нова підсистема Private Compute Core відокремлює алгоритми аналізу тексту, зображень та голосових команд у захищену пісочницю без прямого доступу до мережі Інтернет.
 
                 Окрім цього, користувачі отримали детальну панель моніторингу дозволів у реальному часі. Тепер система показує не лише факт звернення застосунку до камери, мікрофона чи геолокації, а й частоту запитів у фоновому режимі протягом останніх семи днів.
-
-                Розробники мобільних застосунків на Jetpack Compose та Kotlin також отримали оновлені бібліотеки для безпечного локального збереження налаштувань та кешування контенту для офлайн-режиму. Фахівці з кібербезпеки відзначають, що такий підхід суттєво знижує ризики витоку метаданих під час користування публічними мережами Wi-Fi.
             """.trimIndent()
         ),
         isSaved = true
@@ -169,10 +168,6 @@ val sampleArticles = listOf(
                 Європейські регулятори та спільнота розробників програмного забезпечення з відкритим кодом узгодили новий пакет технічних вимог до мобільних платформ. Основна мета ініціативи — забезпечити однаково високу продуктивність сторонніх клієнтів і системних компонентів.
 
                 Результати незалежного тестування на популярних моделях смартфонів показали, що перехід на сучасні декларативні фреймворки інтерфейсу та оптимізовані мережеві клієнти скорочує час холодного старту застосунків майже на чверть.
-
-                Особливу увагу приділено прозорості роботи фонових синхронізацій. Тепер новинні агрегатори та читалки можуть завантажувати стиснені пакети статей за розкладом, не створюючи пікових навантажень на процесор та радіомодуль пристрою.
-
-                Очікується, що протягом наступного півріччя більшість великих видавництв оновлять свої публічні REST API для підтримки легких форматів передачі медіафайлів та адаптивних мініатюр.
             """.trimIndent()
         ),
         isSaved = false
@@ -196,11 +191,7 @@ val sampleArticles = listOf(
             bodyText = """
                 Міжнародна команда астрофізиків опублікувала результати багаторічних спостережень за системою червоного карлика у сузір'ї Живописця. Завдяки високоточному інфрачервоному спектрографу вченим вперше вдалося чітко виділити хімічний підпис атмосфери навколо кам'янистої планети земного типу.
 
-                Попередні спроби дослідити подібні об'єкти часто ускладнювалися спалахами материнської зорі, які спотворювали спектр під час транзиту планети. Цього разу дослідники застосували нову методику серії послідовних вимірювань на різних довжинах хвиль.
-
                 Отримані дані свідчать про те, що планета утримує щільну газову оболонку попри близьке розташування до свого світила. Це відкриває нові перспективи у пошуку потенційно придатних для життя світів у нашій галактиці.
-
-                Наступний етап спостережень заплановано на початок зими: астрономи планують оцінити швидкість атмосферних вітрів та перевірити наявність хмарного покриву на денній стороні екзопланети.
             """.trimIndent()
         ),
         isSaved = false
@@ -224,11 +215,7 @@ val sampleArticles = listOf(
             bodyText = """
                 Британські та українські дослідники в галузі прикладної фізики провели успішні польові випробування автономної інерціальної системи навігації нового покоління. В основі приладу лежить охолоджена лазером хмара атомів рубідію, яка реагує на найменші зміни гравітаційного поля та прискорення.
 
-                Звичайні мікроелектронні акселерометри з часом накопичують похибку, тому без корекції за супутниками GPS точність визначення координат швидко падає. Квантовий датчик позбавлений цього дрейфу і дозволяє утримувати точний маршрут під землею, під водою або в умовах радіоелектронних перешкод.
-
-                За останній рік інженерам вдалося зменшити габарити вакуумної камери та лазерного модуля з розміру лабораторної шафи до компактного переносного кейса, а енергоспоживання знизилося більш ніж утричі.
-
-                У найближчі роки подібні сенсори планують використовувати на дослідницьких суднах, у цивільній авіації та в геофізичному моніторингу тектонічної активності.
+                Квантовий датчик позбавлений накопичення похибки і дозволяє утримувати точний маршрут під землею, під водою або в умовах радіоелектронних перешкод.
             """.trimIndent()
         ),
         isSaved = true
@@ -247,16 +234,12 @@ val sampleArticles = listOf(
             thumbnail = "https://media.guim.co.uk/sample-env-thumb-1.jpg",
             thumbnailRes = R.drawable.news_thumb_3,
             trailText = "Інтеграція промислових акумуляторних станцій дозволила стабілізувати вечірні піки споживання в енергомережі.",
-            byline = "Jilliam Ambrose, енергетична оглядачка",
+            byline = "Jillian Ambrose, енергетична оглядачка",
             wordcount = "650",
             bodyText = """
                 За даними європейських операторів систем передачі електроенергії, частка відновлюваних джерел у загальному балансі перевищила прогнозовані показники жовтня завдяки поєднанню високої вітрової активності у Північному морі та введенню в експлуатацію нових сонячних парків.
 
-                Ключовим фактором успіху цього сезону стали великі мережеві накопичувачі енергії. Протягом денних годин вони акумулюють надлишкову генерацію, а ввечері, коли домогосподарства вмикають опалення та освітлення, віддають потужність у мережу за лічені мілісекунди.
-
-                Аналітики підкреслюють, що модернізація міждержавних інтерконекторів дозволила значно ефективніше перерозподіляти електроенергію між регіонами з різними погодними умовами.
-
-                Водночас експерти наголошують на необхідності подальшого розвитку розумних локальних мереж (Smart Grids) та гнучких тарифів для споживачів, щоб стимулювати заряджання електромобілів у години максимальної генерації.
+                Ключовим фактором успіху цього сезону стали великі мережеві накопичувачі енергії, які акумулюють надлишкову денну генерацію і віддають її ввечері.
             """.trimIndent()
         ),
         isSaved = true
@@ -279,12 +262,6 @@ val sampleArticles = listOf(
             wordcount = "580",
             bodyText = """
                 Екологи з кількох карпатських природоохоронних заповідників впровадили цифрову систему спостереження за відновленням пралісів та високогірних смереково-букових масивів. Система автоматично порівнює мультиспектральні знімки місцевості та визначає ділянки, які найбільше потребують природної регенерації.
-
-                Замість монокультурних насаджень, які часто виявляються вразливими до буревіїв та сезонних посух, фахівці формують мішані ділянки з місцевих видів дерев, стійких до кліматичних змін.
-
-                Кожна дослідна ділянка має власний цифровий паспорт із координатами, показниками вологості ґрунту та історією спостережень. Усі зібрані матеріали публікуються у відкритому доступі для науковців та місцевих громад.
-
-                За перші два роки роботи програми приживлюваність молодих дерев на гірських схилах зросла майже на третину, що також сприяє природному захисту долин від весняних паводків.
             """.trimIndent()
         ),
         isSaved = false
@@ -292,21 +269,42 @@ val sampleArticles = listOf(
 )
 
 // ============================================================================
-// 3. СТАН ЕКРАНА ТА VIEWMODEL (Лабораторні №4–5)
+// 3. СТАН ЕКРАНА ТА VIEWMODEL З ПІДПИСКОЮ НА DATASTORE (Лабораторні №4–6)
 // ============================================================================
 
 data class NewsFeedUiState(
     val sections: List<String> = availableSections,
-    val selectedSection: String = availableSections.first(),
+    val defaultSection: String = UserPreferencesRepository.DEFAULT_SECTION_FALLBACK,
+    val selectedSection: String = UserPreferencesRepository.DEFAULT_SECTION_FALLBACK,
     val allArticles: List<GuardianArticle> = sampleArticles,
     val filteredArticles: List<GuardianArticle> = sampleArticles
 )
 
-class NewsFeedViewModel : ViewModel() {
+class NewsFeedViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val preferencesRepository = UserPreferencesRepository(application.applicationContext)
 
     private val _uiState = MutableStateFlow(NewsFeedUiState())
     val uiState: StateFlow<NewsFeedUiState> = _uiState.asStateFlow()
 
+    init {
+        // Підписуємо головний екран на Flow із Preferences DataStore,
+        // щоб при запуску та після зміни налаштувань головний екран оновлювався сам
+        viewModelScope.launch {
+            preferencesRepository.defaultSectionFlow.collect { savedDefaultSection ->
+                _uiState.update { currentState ->
+                    val filtered = filterBySection(currentState.allArticles, savedDefaultSection)
+                    currentState.copy(
+                        defaultSection = savedDefaultSection,
+                        selectedSection = savedDefaultSection,
+                        filteredArticles = filtered
+                    )
+                }
+            }
+        }
+    }
+
+    // Тимчасове перемикання фільтра на головному екрані
     fun selectSection(section: String) {
         _uiState.update { currentState ->
             val filtered = filterBySection(currentState.allArticles, section)
@@ -317,16 +315,18 @@ class NewsFeedViewModel : ViewModel() {
         }
     }
 
+    // Скидання фільтра до збереженого у налаштуваннях розділу за замовчуванням
     fun resetFilter() {
-        selectSection("All")
+        selectSection(_uiState.value.defaultSection)
     }
 
-    // Пошук статті за її id для екрана деталей (повертає null, якщо об'єкт не знайдено)
-    fun getArticleById(articleId: String): GuardianArticle? {
-        return _uiState.value.allArticles.find { it.id == articleId }
+    // Запис нового розділу за замовчуванням у Preferences DataStore (викликає suspend-функцію)
+    fun saveDefaultSection(section: String) {
+        viewModelScope.launch {
+            preferencesRepository.saveDefaultSection(section)
+        }
     }
 
-    // Перемикання статусу збереження статті у закладках через copy()
     fun toggleSaved(articleId: String) {
         _uiState.update { currentState ->
             val updatedAll = currentState.allArticles.map { article ->
@@ -357,17 +357,16 @@ class NewsFeedViewModel : ViewModel() {
 }
 
 // ============================================================================
-// 4. ГОЛОВНА АКТИВНІСТЬ ТА НАВІГАЦІЯ (NavHost) (Лабораторна №5)
-// Екрани не знають про NavController — вони отримують лише лямбди onItemClick і onBackClick
+// 4. НАВІГАЦІЯ (NavHost): ГОЛОВНИЙ ЕКРАН, ДЕТАЛІ СТАТТІ ТА НАЛАШТУВАННЯ (Лабораторні №5–6)
 // ============================================================================
 
 object AppDestinations {
     const val FEED_ROUTE = "feed"
+    const val SETTINGS_ROUTE = "settings"
     const val ARTICLE_ID_ARG = "articleId"
     const val DETAIL_ROUTE_TEMPLATE = "article/{$ARTICLE_ID_ARG}"
 
     fun createDetailRoute(articleId: String): String {
-        // Кодуємо id, оскільки id у The Guardian API містить слеші (напр. technology/2026/...)
         return "article/${Uri.encode(articleId)}"
     }
 }
@@ -394,17 +393,18 @@ fun GuardianNewsApp(
         navController = navController,
         startDestination = AppDestinations.FEED_ROUTE
     ) {
-        // Стартовий головний екран (не знає про NavController, отримує лише onItemClick)
         composable(route = AppDestinations.FEED_ROUTE) {
             NewsFeedScreen(
                 newsViewModel = newsViewModel,
                 onItemClick = { articleId ->
                     navController.navigate(AppDestinations.createDetailRoute(articleId))
+                },
+                onSettingsClick = {
+                    navController.navigate(AppDestinations.SETTINGS_ROUTE)
                 }
             )
         }
 
-        // Екран деталей об'єкта: читає id з маршруту, бере за ним об'єкт і отримує onBackClick
         composable(
             route = AppDestinations.DETAIL_ROUTE_TEMPLATE,
             arguments = listOf(
@@ -424,16 +424,27 @@ fun GuardianNewsApp(
                 }
             )
         }
+
+        // Маршрут екрана налаштувань (Лабораторна №6)
+        composable(route = AppDestinations.SETTINGS_ROUTE) {
+            SettingsScreen(
+                newsViewModel = newsViewModel,
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
 
 // ============================================================================
-// 5. ГОЛОВНИЙ ЕКРАН СТРІЧКИ (без стрілки "Назад", бо це стартовий екран)
+// 5. ГОЛОВНИЙ ЕКРАН СТРІЧКИ (з кнопкою входу в Налаштування у TopAppBar)
 // ============================================================================
 
 @Composable
 fun NewsFeedScreen(
     onItemClick: (String) -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
     newsViewModel: NewsFeedViewModel = viewModel()
 ) {
@@ -444,6 +455,7 @@ fun NewsFeedScreen(
         onSectionSelected = newsViewModel::selectSection,
         onResetFilter = newsViewModel::resetFilter,
         onItemClick = onItemClick,
+        onSettingsClick = onSettingsClick,
         modifier = modifier
     )
 }
@@ -455,6 +467,7 @@ fun NewsFeedContent(
     onSectionSelected: (String) -> Unit,
     onResetFilter: () -> Unit,
     onItemClick: (String) -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -469,15 +482,25 @@ fun NewsFeedContent(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Розділ: ${uiState.selectedSection} · Статей: ${uiState.filteredArticles.size}",
+                            text = "За замовч.: ${uiState.defaultSection} · Обрано: ${uiState.selectedSection} (${uiState.filteredArticles.size})",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
                     }
                 },
+                actions = {
+                    // Вхід на екран налаштувань з TopAppBar головного екрана (Лабораторна №6)
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Налаштування"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         }
@@ -530,7 +553,136 @@ fun NewsFeedContent(
 }
 
 // ============================================================================
-// 6. ЕКРАН ДЕТАЛЕЙ ОБ'ЄКТА (зі стрілкою "Назад", скролом і обробкою відсутності id)
+// 6. ЕКРАН НАЛАШТУВАНЬ (Лабораторна №6)
+// Показує на перемикачі значення напряму зі сховища DataStore без власної копії в remember
+// ============================================================================
+
+@Composable
+fun SettingsScreen(
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    newsViewModel: NewsFeedViewModel = viewModel()
+) {
+    val uiState by newsViewModel.uiState.collectAsState()
+
+    SettingsContent(
+        sections = uiState.sections,
+        savedDefaultSection = uiState.defaultSection,
+        onDefaultSectionSelected = newsViewModel::saveDefaultSection,
+        onBackClick = onBackClick,
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsContent(
+    sections: List<String>,
+    savedDefaultSection: String,
+    onDefaultSectionSelected: (String) -> Unit,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Налаштування",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Розділ новин за замовчуванням",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Обраний розділ зберігається на пристрої у Preferences DataStore. При запуску застосунку та при зміні цього параметра головний екран автоматично показує новини цієї рубрики.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Перемикачі RadioButton читають savedDefaultSection напряму з DataStore Flow (без remember)
+                    sections.forEach { section ->
+                        val isSelected = section == savedDefaultSection
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { onDefaultSectionSelected(section) }
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onDefaultSectionSelected(section) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = if (section == "All") "Усі новини (All)" else section,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                                if (isSelected) {
+                                    Text(
+                                        text = "Збережено в DataStore як стартовий розділ",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 7. ЕКРАН ДЕТАЛЕЙ ОБ'ЄКТА (Лабораторна №5)
 // ============================================================================
 
 @Composable
@@ -575,7 +727,6 @@ fun ArticleDetailContent(
                     )
                 },
                 navigationIcon = {
-                    // Стрілка «Назад» у TopAppBar (присутня лише на вкладеному екрані деталей)
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -592,7 +743,6 @@ fun ArticleDetailContent(
         }
     ) { innerPadding ->
         if (article == null) {
-            // Випадок, коли об'єкт за переданим id не знайшовся
             ArticleNotFoundState(
                 articleId = articleId,
                 onBackClick = onBackClick,
@@ -602,14 +752,12 @@ fun ArticleDetailContent(
                     .padding(24.dp)
             )
         } else {
-            // Повний вміст статті з вертикальним скролом
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Обкладинка статті з бейджем рубрики
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -644,7 +792,6 @@ fun ArticleDetailContent(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Заголовок статті
                     Text(
                         text = article.webTitle,
                         style = MaterialTheme.typography.headlineSmall,
@@ -652,7 +799,6 @@ fun ArticleDetailContent(
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    // Підзаголовок / лід статті (fields.trailText — поле, якого немає на картці списку)
                     Text(
                         text = article.fields.trailText,
                         style = MaterialTheme.typography.titleMedium,
@@ -660,7 +806,6 @@ fun ArticleDetailContent(
                         fontWeight = FontWeight.Medium
                     )
 
-                    // Кнопка збереження в закладки на пристрої
                     Button(
                         onClick = onToggleSaved,
                         modifier = Modifier.fillMaxWidth()
@@ -674,7 +819,6 @@ fun ArticleDetailContent(
                         )
                     }
 
-                    // Картка розширених метаданих (byline, wordcount, id, webUrl — відсутні на картці списку)
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -696,7 +840,6 @@ fun ArticleDetailContent(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                    // Повний текст статті (fields.bodyText — довгий вміст для прокрутки)
                     Text(
                         text = "Повний текст матеріалу",
                         style = MaterialTheme.typography.titleMedium,
@@ -784,7 +927,7 @@ fun ArticleNotFoundState(
 }
 
 // ============================================================================
-// 7. РЯД ПЕРЕМИКАЧІВ, ПОРОЖНІЙ СТАН СПИСКУ ТА КАРТКА В КАТАЛОЗІ
+// 8. РЯД ПЕРЕМИКАЧІВ, ПОРОЖНІЙ СТАН СПИСКУ ТА КАРТКА В КАТАЛОЗІ
 // ============================================================================
 
 @Composable
@@ -857,7 +1000,7 @@ fun EmptySectionState(
                     textAlign = TextAlign.Center
                 )
                 Button(onClick = onResetFilter) {
-                    Text(text = "Показати всі новини")
+                    Text(text = "Скинути до розділу за замовчуванням")
                 }
                 OutlinedButton(onClick = onTestMissingArticleClick) {
                     Text(text = "Перевірити неіснуючий ID")
@@ -1018,20 +1161,21 @@ fun NewsFeedScreenPreview() {
             uiState = NewsFeedUiState(),
             onSectionSelected = {},
             onResetFilter = {},
-            onItemClick = {}
+            onItemClick = {},
+            onSettingsClick = {}
         )
     }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun ArticleDetailScreenPreview() {
+fun SettingsScreenPreview() {
     GuardianNewsTheme {
-        ArticleDetailContent(
-            articleId = sampleArticles.first().id,
-            article = sampleArticles.first(),
-            onBackClick = {},
-            onToggleSaved = {}
+        SettingsContent(
+            sections = availableSections,
+            savedDefaultSection = "Technology",
+            onDefaultSectionSelected = {},
+            onBackClick = {}
         )
     }
 }
