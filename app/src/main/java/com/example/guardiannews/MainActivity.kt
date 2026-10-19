@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -77,13 +78,13 @@ import kotlinx.coroutines.launch
 
 /*
  * Примітка щодо використання ШІ (AI Disclosure):
- * Під час виконання Лабораторних робіт №1–6 використовувався ШІ-асистент Google Gemini
- * для проєктування моделі GuardianArticle, верстки Jetpack Compose, налаштування ViewModel,
- * навігації NavHost та збереження розділу за замовчуванням у Preferences DataStore.
+ * Під час виконання Лабораторних робіт №1–7 використовувався ШІ-асистент Google Gemini
+ * для проєктування моделі даних, верстки Jetpack Compose, налаштування ViewModel, NavHost,
+ * Preferences DataStore та підключення The Guardian API через Retrofit і kotlinx.serialization.
  */
 
 // ============================================================================
-// 1. МОДЕЛЬ ДАНИХ (поля відповідають JSON-відповіді The Guardian API)
+// 1. МОДЕЛЬ ДАНИХ ЗАСТОСУНКУ (вписаний у код список sampleArticles прибрано!)
 // ============================================================================
 
 data class GuardianFields(
@@ -109,10 +110,6 @@ data class GuardianArticle(
     val isSaved: Boolean = false
 )
 
-// ============================================================================
-// 2. ПОЧАТКОВІ ДАНІ (6 ОБ'ЄКТІВ ТА СПИСОК РОЗДІЛІВ)
-// ============================================================================
-
 val availableSections = listOf(
     "All",
     "Technology",
@@ -121,243 +118,117 @@ val availableSections = listOf(
     "Sport"
 )
 
-val sampleArticles = listOf(
-    GuardianArticle(
-        id = "technology/2026/oct/19/android-16-security-ai-features",
-        type = "article",
-        sectionId = "technology",
-        sectionName = "Technology",
-        webPublicationDate = "2026-10-19T14:30:00Z",
-        webTitle = "Android розширює захист приватності та локальну обробку даних на смартфонах",
-        webUrl = "https://www.theguardian.com/technology/2026/oct/19/android-16-security-ai-features",
-        apiUrl = "https://content.guardianapis.com/technology/2026/oct/19/android-16-security-ai-features",
-        pillarName = "News",
-        fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-tech-thumb-1.jpg",
-            thumbnailRes = R.drawable.news_thumb_1,
-            trailText = "Нові механізми ізоляції дозволяють виконувати моделі машинного навчання без передачі персональних даних на зовнішні сервери.",
-            byline = "Alex Hern, редактор розділу технологій",
-            wordcount = "620",
-            bodyText = """
-                Оновлення платформи Android приносить суттєві зміни в архітектуру безпеки мобільних пристроїв. Головний акцент зроблено на локальному виконанні обчислень безпосередньо на процесорі смартфона, щоб чутливі дані користувача ніколи не залишали межі пристрою.
-
-                За словами інженерів проєкту Android Open Source Project, нова підсистема Private Compute Core відокремлює алгоритми аналізу тексту, зображень та голосових команд у захищену пісочницю без прямого доступу до мережі Інтернет.
-
-                Окрім цього, користувачі отримали детальну панель моніторингу дозволів у реальному часі. Тепер система показує не лише факт звернення застосунку до камери, мікрофона чи геолокації, а й частоту запитів у фоновому режимі протягом останніх семи днів.
-            """.trimIndent()
-        ),
-        isSaved = true
-    ),
-    GuardianArticle(
-        id = "technology/2026/oct/18/open-source-mobile-browsers-eu-regulations",
-        type = "article",
-        sectionId = "technology",
-        sectionName = "Technology",
-        webPublicationDate = "2026-10-18T11:20:00Z",
-        webTitle = "Нові стандарти відкритих мобільних екосистем пришвидшують роботу застосунків",
-        webUrl = "https://www.theguardian.com/technology/2026/oct/18/open-source-mobile-browsers-eu-regulations",
-        apiUrl = "https://content.guardianapis.com/technology/2026/oct/18/open-source-mobile-browsers-eu-regulations",
-        pillarName = "News",
-        fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-tech-thumb-2.jpg",
-            thumbnailRes = R.drawable.news_thumb_1,
-            trailText = "Уніфікація протоколів обміну даними та сучасних рушіїв рендерингу зменшує споживання заряду батареї на 18%.",
-            byline = "Dan Milmo, оглядач глобальних технологій",
-            wordcount = "540",
-            bodyText = """
-                Європейські регулятори та спільнота розробників програмного забезпечення з відкритим кодом узгодили новий пакет технічних вимог до мобільних платформ. Основна мета ініціативи — забезпечити однаково високу продуктивність сторонніх клієнтів і системних компонентів.
-
-                Результати незалежного тестування на популярних моделях смартфонів показали, що перехід на сучасні декларативні фреймворки інтерфейсу та оптимізовані мережеві клієнти скорочує час холодного старту застосунків майже на чверть.
-            """.trimIndent()
-        ),
-        isSaved = false
-    ),
-    GuardianArticle(
-        id = "science/2026/oct/18/european-space-telescope-new-exoplanet-discovery",
-        type = "article",
-        sectionId = "science",
-        sectionName = "Science",
-        webPublicationDate = "2026-10-18T09:15:00Z",
-        webTitle = "Європейський космічний телескоп зафіксував атмосферу на кам'янистій екзопланеті",
-        webUrl = "https://www.theguardian.com/science/2026/oct/18/european-space-telescope-new-exoplanet-discovery",
-        apiUrl = "https://content.guardianapis.com/science/2026/oct/18/european-space-telescope-new-exoplanet-discovery",
-        pillarName = "News",
-        fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-science-thumb-1.jpg",
-            thumbnailRes = R.drawable.news_thumb_2,
-            trailText = "Спектральний аналіз підтвердив наявність водяної пари та вуглекислого газу у верхніх шарах атмосфери планети на відстані 42 світлових років.",
-            byline = "Ian Sample, науковий редактор",
-            wordcount = "710",
-            bodyText = """
-                Міжнародна команда астрофізиків опублікувала результати багаторічних спостережень за системою червоного карлика у сузір'ї Живописця. Завдяки високоточному інфрачервоному спектрографу вченим вперше вдалося чітко виділити хімічний підпис атмосфери навколо кам'янистої планети земного типу.
-
-                Отримані дані свідчать про те, що планета утримує щільну газову оболонку попри близьке розташування до свого світила. Це відкриває нові перспективи у пошуку потенційно придатних для життя світів у нашій галактиці.
-            """.trimIndent()
-        ),
-        isSaved = false
-    ),
-    GuardianArticle(
-        id = "science/2026/oct/16/quantum-sensors-navigation-without-satellites",
-        type = "article",
-        sectionId = "science",
-        sectionName = "Science",
-        webPublicationDate = "2026-10-16T16:05:00Z",
-        webTitle = "Фізики протестували квантові сенсори для точної навігації без супутникового сигналу",
-        webUrl = "https://www.theguardian.com/science/2026/oct/16/quantum-sensors-navigation-without-satellites",
-        apiUrl = "https://content.guardianapis.com/science/2026/oct/16/quantum-sensors-navigation-without-satellites",
-        pillarName = "News",
-        fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-science-thumb-2.jpg",
-            thumbnailRes = R.drawable.news_thumb_2,
-            trailText = "Компактні атомні інтерферометри визначають прискорення та положення у просторі там, де GPS недоступний.",
-            byline = "Nicola Davis, наукова кореспондентка",
-            wordcount = "590",
-            bodyText = """
-                Британські та українські дослідники в галузі прикладної фізики провели успішні польові випробування автономної інерціальної системи навігації нового покоління. В основі приладу лежить охолоджена лазером хмара атомів рубідію, яка реагує на найменші зміни гравітаційного поля та прискорення.
-
-                Квантовий датчик позбавлений накопичення похибки і дозволяє утримувати точний маршрут під землею, під водою або в умовах радіоелектронних перешкод.
-            """.trimIndent()
-        ),
-        isSaved = true
-    ),
-    GuardianArticle(
-        id = "environment/2026/oct/17/clean-energy-grids-record-growth-europe",
-        type = "article",
-        sectionId = "environment",
-        sectionName = "Environment",
-        webPublicationDate = "2026-10-17T18:45:00Z",
-        webTitle = "Сонячна та вітрова генерація в Європі встановила новий осінній рекорд потужності",
-        webUrl = "https://www.theguardian.com/environment/2026/oct/17/clean-energy-grids-record-growth-europe",
-        apiUrl = "https://content.guardianapis.com/environment/2026/oct/17/clean-energy-grids-record-growth-europe",
-        pillarName = "News",
-        fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-env-thumb-1.jpg",
-            thumbnailRes = R.drawable.news_thumb_3,
-            trailText = "Інтеграція промислових акумуляторних станцій дозволила стабілізувати вечірні піки споживання в енергомережі.",
-            byline = "Jillian Ambrose, енергетична оглядачка",
-            wordcount = "650",
-            bodyText = """
-                За даними європейських операторів систем передачі електроенергії, частка відновлюваних джерел у загальному балансі перевищила прогнозовані показники жовтня завдяки поєднанню високої вітрової активності у Північному морі та введенню в експлуатацію нових сонячних парків.
-
-                Ключовим фактором успіху цього сезону стали великі мережеві накопичувачі енергії, які акумулюють надлишкову денну генерацію і віддають її ввечері.
-            """.trimIndent()
-        ),
-        isSaved = true
-    ),
-    GuardianArticle(
-        id = "environment/2026/oct/15/carpathian-forest-restoration-monitoring-drones",
-        type = "article",
-        sectionId = "environment",
-        sectionName = "Environment",
-        webPublicationDate = "2026-10-15T12:10:00Z",
-        webTitle = "Супутниковий моніторинг допомагає відновлювати гірські лісові екосистеми у Карпатах",
-        webUrl = "https://www.theguardian.com/environment/2026/oct/15/carpathian-forest-restoration-monitoring-drones",
-        apiUrl = "https://content.guardianapis.com/environment/2026/oct/15/carpathian-forest-restoration-monitoring-drones",
-        pillarName = "News",
-        fields = GuardianFields(
-            thumbnail = "https://media.guim.co.uk/sample-env-thumb-2.jpg",
-            thumbnailRes = R.drawable.news_thumb_3,
-            trailText = "Поєднання супутникових знімків високої роздільної здатності та відкритих баз даних дозволяє точно планувати висадку мішаних лісів.",
-            byline = "Patrick Greenfield, кореспондент з питань біорізноманіття",
-            wordcount = "580",
-            bodyText = """
-                Екологи з кількох карпатських природоохоронних заповідників впровадили цифрову систему спостереження за відновленням пралісів та високогірних смереково-букових масивів. Система автоматично порівнює мультиспектральні знімки місцевості та визначає ділянки, які найбільше потребують природної регенерації.
-            """.trimIndent()
-        ),
-        isSaved = false
-    )
-)
-
 // ============================================================================
-// 3. СТАН ЕКРАНА ТА VIEWMODEL З ПІДПИСКОЮ НА DATASTORE (Лабораторні №4–6)
+// 2. СТАН ЕКРАНА ТА VIEWMODEL ІЗ ЗАПИТАМИ ДО THE GUARDIAN API (Лабораторна №7)
 // ============================================================================
 
 data class NewsFeedUiState(
     val sections: List<String> = availableSections,
     val defaultSection: String = UserPreferencesRepository.DEFAULT_SECTION_FALLBACK,
     val selectedSection: String = UserPreferencesRepository.DEFAULT_SECTION_FALLBACK,
-    val allArticles: List<GuardianArticle> = sampleArticles,
-    val filteredArticles: List<GuardianArticle> = sampleArticles
+    val allArticles: List<GuardianArticle> = emptyList(),
+    val filteredArticles: List<GuardianArticle> = emptyList(),
+    val isLoading: Boolean = false
 )
 
 class NewsFeedViewModel(application: Application) : AndroidViewModel(application) {
 
     private val preferencesRepository = UserPreferencesRepository(application.applicationContext)
+    private val savedArticleIds = mutableSetOf<String>()
 
-    private val _uiState = MutableStateFlow(NewsFeedUiState())
+    private val _uiState = MutableStateFlow(NewsFeedUiState(isLoading = true))
     val uiState: StateFlow<NewsFeedUiState> = _uiState.asStateFlow()
 
     init {
-        // Підписуємо головний екран на Flow із Preferences DataStore,
-        // щоб при запуску та після зміни налаштувань головний екран оновлювався сам
+        // При відкритті застосунку та при зміні розділу за замовчуванням у DataStore
+        // оновлюємо обраний розділ і виконуємо запит до API
         viewModelScope.launch {
             preferencesRepository.defaultSectionFlow.collect { savedDefaultSection ->
                 _uiState.update { currentState ->
-                    val filtered = filterBySection(currentState.allArticles, savedDefaultSection)
                     currentState.copy(
                         defaultSection = savedDefaultSection,
-                        selectedSection = savedDefaultSection,
-                        filteredArticles = filtered
+                        selectedSection = savedDefaultSection
                     )
                 }
+                loadArticles(savedDefaultSection)
             }
         }
     }
 
-    // Тимчасове перемикання фільтра на головному екрані
+    // Виклик запиту при зміні вибору розділу на головному екрані (з роботи 3)
     fun selectSection(section: String) {
         _uiState.update { currentState ->
-            val filtered = filterBySection(currentState.allArticles, section)
-            currentState.copy(
-                selectedSection = section,
-                filteredArticles = filtered
-            )
+            currentState.copy(selectedSection = section)
         }
+        loadArticles(section)
     }
 
-    // Скидання фільтра до збереженого у налаштуваннях розділу за замовчуванням
     fun resetFilter() {
         selectSection(_uiState.value.defaultSection)
     }
 
-    // Запис нового розділу за замовчуванням у Preferences DataStore (викликає suspend-функцію)
     fun saveDefaultSection(section: String) {
         viewModelScope.launch {
             preferencesRepository.saveDefaultSection(section)
         }
     }
 
+    // Запит до The Guardian API через Retrofit
+    fun loadArticles(section: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            val sectionParam = if (section.equals("All", ignoreCase = true)) {
+                null
+            } else {
+                section.lowercase()
+            }
+
+            val loadedArticles = try {
+                val response = GuardianNetwork.api.searchArticles(section = sectionParam)
+                response.response?.results.orEmpty().map { dto ->
+                    dto.toDomainModel(isSaved = savedArticleIds.contains(dto.id))
+                }
+            } catch (e: Exception) {
+                // Повноцінна обробка помилок буде у роботі №8; тут головне, щоб застосунок не падав
+                emptyList()
+            }
+
+            _uiState.update { currentState ->
+                currentState.copy(
+                    allArticles = loadedArticles,
+                    filteredArticles = loadedArticles,
+                    isLoading = false
+                )
+            }
+        }
+    }
+
     fun toggleSaved(articleId: String) {
+        if (savedArticleIds.contains(articleId)) {
+            savedArticleIds.remove(articleId)
+        } else {
+            savedArticleIds.add(articleId)
+        }
+
         _uiState.update { currentState ->
-            val updatedAll = currentState.allArticles.map { article ->
+            val updated = currentState.allArticles.map { article ->
                 if (article.id == articleId) {
-                    article.copy(isSaved = !article.isSaved)
+                    article.copy(isSaved = savedArticleIds.contains(articleId))
                 } else {
                     article
                 }
             }
-            val updatedFiltered = filterBySection(updatedAll, currentState.selectedSection)
             currentState.copy(
-                allArticles = updatedAll,
-                filteredArticles = updatedFiltered
+                allArticles = updated,
+                filteredArticles = updated
             )
-        }
-    }
-
-    private fun filterBySection(
-        articles: List<GuardianArticle>,
-        section: String
-    ): List<GuardianArticle> {
-        return if (section == "All") {
-            articles
-        } else {
-            articles.filter { it.sectionName.equals(section, ignoreCase = true) }
         }
     }
 }
 
 // ============================================================================
-// 4. НАВІГАЦІЯ (NavHost): ГОЛОВНИЙ ЕКРАН, ДЕТАЛІ СТАТТІ ТА НАЛАШТУВАННЯ (Лабораторні №5–6)
+// 3. НАВІГАЦІЯ (NavHost): ГОЛОВНИЙ ЕКРАН, ДЕТАЛІ СТАТТІ ТА НАЛАШТУВАННЯ
 // ============================================================================
 
 object AppDestinations {
@@ -425,7 +296,6 @@ fun GuardianNewsApp(
             )
         }
 
-        // Маршрут екрана налаштувань (Лабораторна №6)
         composable(route = AppDestinations.SETTINGS_ROUTE) {
             SettingsScreen(
                 newsViewModel = newsViewModel,
@@ -438,7 +308,7 @@ fun GuardianNewsApp(
 }
 
 // ============================================================================
-// 5. ГОЛОВНИЙ ЕКРАН СТРІЧКИ (з кнопкою входу в Налаштування у TopAppBar)
+// 4. ГОЛОВНИЙ ЕКРАН СТРІЧКИ (показує індикатор завантаження під час запиту)
 // ============================================================================
 
 @Composable
@@ -489,7 +359,6 @@ fun NewsFeedContent(
                     }
                 },
                 actions = {
-                    // Вхід на екран налаштувань з TopAppBar головного екрана (Лабораторна №6)
                     IconButton(onClick = onSettingsClick) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -521,7 +390,25 @@ fun NewsFeedContent(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            if (uiState.filteredArticles.isEmpty()) {
+            // Поки триває мережевий запит — показуємо індикатор завантаження (Лабораторна №7)
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = "Завантаження новин із The Guardian API...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else if (uiState.filteredArticles.isEmpty()) {
                 EmptySectionState(
                     sectionName = uiState.selectedSection,
                     onResetFilter = onResetFilter,
@@ -553,8 +440,7 @@ fun NewsFeedContent(
 }
 
 // ============================================================================
-// 6. ЕКРАН НАЛАШТУВАНЬ (Лабораторна №6)
-// Показує на перемикачі значення напряму зі сховища DataStore без власної копії в remember
+// 5. ЕКРАН НАЛАШТУВАНЬ (Лабораторна №6)
 // ============================================================================
 
 @Composable
@@ -636,14 +522,13 @@ fun SettingsContent(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Обраний розділ зберігається на пристрої у Preferences DataStore. При запуску застосунку та при зміні цього параметра головний екран автоматично показує новини цієї рубрики.",
+                        text = "Обраний розділ зберігається у Preferences DataStore. При запуску застосунку та при зміні цього параметра автоматично виконується запит до The Guardian API для обраної рубрики.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Перемикачі RadioButton читають savedDefaultSection напряму з DataStore Flow (без remember)
                     sections.forEach { section ->
                         val isSelected = section == savedDefaultSection
                         Row(
@@ -682,7 +567,7 @@ fun SettingsContent(
 }
 
 // ============================================================================
-// 7. ЕКРАН ДЕТАЛЕЙ ОБ'ЄКТА (Лабораторна №5)
+// 6. ЕКРАН ДЕТАЛЕЙ ОБ'ЄКТА (показує справжні поля, завантажені з API)
 // ============================================================================
 
 @Composable
@@ -927,7 +812,7 @@ fun ArticleNotFoundState(
 }
 
 // ============================================================================
-// 8. РЯД ПЕРЕМИКАЧІВ, ПОРОЖНІЙ СТАН СПИСКУ ТА КАРТКА В КАТАЛОЗІ
+// 7. РЯД ПЕРЕМИКАЧІВ, ПОРОЖНІЙ СТАН СПИСКУ ТА КАРТКА В КАТАЛОЗІ
 // ============================================================================
 
 @Composable
@@ -994,13 +879,13 @@ fun EmptySectionState(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "У розділі «$sectionName» наразі немає збережених або завантажених статей. Спробуйте обрати іншу рубрику.",
+                    text = "Не вдалося завантажити статті для розділу «$sectionName» або список порожній.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
                 Button(onClick = onResetFilter) {
-                    Text(text = "Скинути до розділу за замовчуванням")
+                    Text(text = "Спробувати знову")
                 }
                 OutlinedButton(onClick = onTestMissingArticleClick) {
                     Text(text = "Перевірити неіснуючий ID")
@@ -1158,24 +1043,11 @@ fun ArticleCard(
 fun NewsFeedScreenPreview() {
     GuardianNewsTheme {
         NewsFeedContent(
-            uiState = NewsFeedUiState(),
+            uiState = NewsFeedUiState(isLoading = true),
             onSectionSelected = {},
             onResetFilter = {},
             onItemClick = {},
             onSettingsClick = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun SettingsScreenPreview() {
-    GuardianNewsTheme {
-        SettingsContent(
-            sections = availableSections,
-            savedDefaultSection = "Technology",
-            onDefaultSectionSelected = {},
-            onBackClick = {}
         )
     }
 }
