@@ -1,5 +1,7 @@
 package com.example.guardiannews
 
+import com.example.guardiannews.model.GuardianArticle
+import com.example.guardiannews.model.GuardianFields
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -8,11 +10,6 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-// ============================================================================
-// 1. КЛАСИ ВІДПОВІДІ API (DTO) — ОКРЕМО ВІД МОДЕЛІ ЗАСТОСУНКУ (Лабораторна №7)
-// Усі поля зроблені nullable з дефолтними значеннями, бо частина полів у API
-// може приходити порожньою або не приходити зовсім
-// ============================================================================
 
 @Serializable
 data class GuardianSearchResponseDto(
@@ -49,16 +46,13 @@ data class GuardianFieldsDto(
     val bodyText: String? = null
 )
 
-// ============================================================================
-// 2. ПЕРЕТВОРЕННЯ (МАППЕР) МІЖ КЛАСАМИ ВІДПОВІДІ API ТА МОДЕЛЛЮ ЗАСТОСУНКУ
-// Опрацьовує порожні або відсутні поля, щоб застосунок ніколи не падав
-// ============================================================================
+
 
 fun GuardianArticleDto.toDomainModel(isSaved: Boolean = false): GuardianArticle {
     val safeSectionId = sectionId?.takeIf { it.isNotBlank() } ?: "news"
     val safeSectionName = sectionName?.takeIf { it.isNotBlank() } ?: "News"
 
-    // Поки що (до Лабораторної №10) використовуємо локальні ілюстрації з res/drawable
+
     val fallbackDrawable = when (safeSectionId.lowercase()) {
         "technology" -> R.drawable.news_thumb_1
         "science" -> R.drawable.news_thumb_2
@@ -66,7 +60,7 @@ fun GuardianArticleDto.toDomainModel(isSaved: Boolean = false): GuardianArticle 
         else -> R.drawable.news_thumb_1
     }
 
-    // Очищення trailText від можливих HTML-тегів, які іноді повертає The Guardian API
+
     val cleanTrailText = fields?.trailText
         ?.replace(Regex("<[^>]*>"), "")
         ?.trim()
@@ -100,9 +94,6 @@ fun GuardianArticleDto.toDomainModel(isSaved: Boolean = false): GuardianArticle 
     )
 }
 
-// ============================================================================
-// 3. ІНТЕРФЕЙС RETROFIT ТА ЄДИНИЙ ЕКЗЕМПЛЯР НА ЗАСТОСУНОК (SINGLETON)
-// ============================================================================
 
 interface GuardianApiService {
 
@@ -123,7 +114,7 @@ object GuardianNetwork {
         coerceInputValues = true
     }
 
-    // Один екземпляр Retrofit на весь застосунок
+
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)

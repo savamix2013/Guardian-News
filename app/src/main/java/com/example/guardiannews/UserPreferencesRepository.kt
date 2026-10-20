@@ -9,7 +9,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// Делегат preferencesDataStore оголошується один раз на рівні окремого файлу
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "guardian_news_settings")
 
 class UserPreferencesRepository(private val context: Context) {
@@ -19,7 +18,6 @@ class UserPreferencesRepository(private val context: Context) {
         const val DEFAULT_SECTION_FALLBACK = "All"
     }
 
-    // Читання значення з Preferences DataStore як Flow зі значенням за замовчуванням для першого запуску
     val defaultSectionFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[DEFAULT_SECTION_KEY] ?: DEFAULT_SECTION_FALLBACK
     }
