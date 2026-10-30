@@ -43,6 +43,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.guardiannews.viewmodel.NewsFeedViewModel
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,11 +155,22 @@ fun ArticleDetailScreen(
                         onClick = { newsViewModel.toggleSaved(articleId) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
+                        Icon(
+                            imageVector = if (article.isSaved) {
+                                Icons.Filled.Star
+                            } else {
+                                Icons.Outlined.StarOutline
+                            },
+                            contentDescription = null
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         Text(
                             text = if (article.isSaved) {
-                                "★ У збережених (прибрати)"
+                                "У збережених (прибрати)"
                             } else {
-                                "☆ Зберегти статтю"
+                                "Зберегти статтю"
                             }
                         )
                     }
