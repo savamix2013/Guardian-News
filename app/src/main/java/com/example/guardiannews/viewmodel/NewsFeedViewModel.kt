@@ -1,115 +1,102 @@
 package com.example.guardiannews.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.guardiannews.data.GuardianApiService
 import com.example.guardiannews.data.GuardianNetwork
-import com.example.guardiannews.data.UserPreferencesRepository
 import com.example.guardiannews.data.toDomainModel
 import com.example.guardiannews.model.GuardianArticle
-import com.example.guardiannews.model.availableSections
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 
-data class NewsFeedUiState(
-    val sections: List<String> = availableSections,
-    val defaultSection: String = UserPreferencesRepository.DEFAULT_SECTION_FALLBACK,
-    val selectedSection: String = UserPreferencesRepository.DEFAULT_SECTION_FALLBACK,
-    val allArticles: List<GuardianArticle> = emptyList(),
-    val filteredArticles: List<GuardianArticle> = emptyList(),
-    val isLoading: Boolean = false
-)
+sealed interface NewsUiState {
+    val allArticles: List<GuardianArticle>
+        get() = (this as? Success)?.articles ?: emptyList()
 
-class NewsFeedViewModel(application: Application) : AndroidViewModel(application) {
+    object Loading : NewsUiState
+    object Empty : NewsUiState
+    data class Success(val articles: List<GuardianArticle>) : NewsUiState
+    data class Error(val message: String) : NewsUiState
+}
 
-    private val preferencesRepository = UserPreferencesRepository(application.applicationContext)
-    private val savedArticleIds = mutableSetOf<String>()
+class NewsFeedViewModel(
+    private val apiService: GuardianApiService = GuardianNetwork.api
+) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(NewsFeedUiState(isLoading = true))
-    val uiState: StateFlow<NewsFeedUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow<NewsUiState>(NewsUiState.Loading)
+    val uiState: StateFlow<NewsUiState> = _uiState.asStateFlow()
+
+    private val _selectedSection = MutableStateFlow("All")
+    val selectedSection: StateFlow<String> = _selectedSection.asStateFlow()
+
+    private val savedArticleIds = MutableStateFlow<Set<String>>(emptySet())
 
     init {
+        loadNews()
+    }
+
+    fun loadNews(section: String? = null) {
+        val targetSection = section ?: _selectedSection.value
+        _selectedSection.value = targetSection
+
         viewModelScope.launch {
-            preferencesRepository.defaultSectionFlow.collect { savedDefaultSection ->
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        defaultSection = savedDefaultSection,
-                        selectedSection = savedDefaultSection
-                    )
+            _uiState.value = NewsUiState.Loading
+            try {
+                val apiSection = if (targetSection == "All" || targetSection.isBlank()) null else targetSection
+                val response = apiService.searchArticles(section = apiSection)
+                val dtos = response.response?.results ?: emptyList()
+
+                if (dtos.isEmpty()) {
+                    _uiState.value = NewsUiState.Empty
+                } else {
+                    val articles = dtos.map { dto ->
+                        dto.toDomainModel(isSaved = savedArticleIds.value.contains(dto.id))
+                    }
+                    _uiState.value = NewsUiState.Success(articles)
                 }
-                loadArticles(savedDefaultSection)
-            }
-        }
-    }
-
-    fun selectSection(section: String) {
-        _uiState.update { currentState ->
-            currentState.copy(selectedSection = section)
-        }
-        loadArticles(section)
-    }
-
-    fun resetFilter() {
-        selectSection(_uiState.value.defaultSection)
-    }
-
-    fun saveDefaultSection(section: String) {
-        viewModelScope.launch {
-            preferencesRepository.saveDefaultSection(section)
-        }
-    }
-
-    fun loadArticles(section: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-
-            val sectionParam = if (section.equals("All", ignoreCase = true)) {
-                null
-            } else {
-                section.lowercase()
-            }
-
-            val loadedArticles = try {
-                val response = GuardianNetwork.api.searchArticles(section = sectionParam)
-                response.response?.results.orEmpty().map { dto ->
-                    dto.toDomainModel(isSaved = savedArticleIds.contains(dto.id))
-                }
+            } catch (e: IOException) {
+                _uiState.value = NewsUiState.Error(
+                    "Відсутнє підключення до мережі. Перевірте інтернет або авіарежим."
+                )
+            } catch (e: HttpException) {
+                _uiState.value = NewsUiState.Error(
+                    "Помилка сервера (${e.code()}). Спробуйте пізніше."
+                )
             } catch (e: Exception) {
-                emptyList()
-            }
-
-            _uiState.update { currentState ->
-                currentState.copy(
-                    allArticles = loadedArticles,
-                    filteredArticles = loadedArticles,
-                    isLoading = false
+                _uiState.value = NewsUiState.Error(
+                    "Отримано некоректні дані від сервера."
                 )
             }
         }
     }
 
     fun toggleSaved(articleId: String) {
-        if (savedArticleIds.contains(articleId)) {
-            savedArticleIds.remove(articleId)
+        val currentSaved = savedArticleIds.value.toMutableSet()
+        if (currentSaved.contains(articleId)) {
+            currentSaved.remove(articleId)
         } else {
-            savedArticleIds.add(articleId)
+            currentSaved.add(articleId)
         }
+        savedArticleIds.value = currentSaved
 
-        _uiState.update { currentState ->
-            val updated = currentState.allArticles.map { article ->
+        val currentState = _uiState.value
+        if (currentState is NewsUiState.Success) {
+            val updatedArticles = currentState.articles.map { article ->
                 if (article.id == articleId) {
-                    article.copy(isSaved = savedArticleIds.contains(articleId))
+                    article.copy(isSaved = currentSaved.contains(articleId))
                 } else {
                     article
                 }
             }
-            currentState.copy(
-                allArticles = updated,
-                filteredArticles = updated
-            )
+            _uiState.value = NewsUiState.Success(updatedArticles)
         }
+    }
+
+    fun retry(section: String? = null) {
+        loadNews(section ?: _selectedSection.value)
     }
 }

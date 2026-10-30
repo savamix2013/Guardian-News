@@ -85,7 +85,6 @@ fun GuardianNewsApp(
 
         composable(route = AppDestinations.SETTINGS_ROUTE) {
             SettingsScreen(
-                newsViewModel = newsViewModel,
                 onBackClick = {
                     navController.popBackStack()
                 }
