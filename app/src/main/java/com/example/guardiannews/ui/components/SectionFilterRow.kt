@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SectionFilterRow(
     sections: List<String>,
-    selectedSection: String,
+    selectedSection: String?,
     onSectionSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {

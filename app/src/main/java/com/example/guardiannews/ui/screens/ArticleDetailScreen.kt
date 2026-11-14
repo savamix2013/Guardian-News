@@ -1,6 +1,5 @@
 package com.example.guardiannews.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,17 +35,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.example.guardiannews.viewmodel.NewsFeedViewModel
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.StarOutline
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,12 +107,55 @@ fun ArticleDetailScreen(
                         .fillMaxWidth()
                         .height(230.dp)
                 ) {
-                    Image(
-                        painter = painterResource(id = article.fields.thumbnailRes),
-                        contentDescription = article.webTitle,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (article.thumbnailUrl != null) {
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(article.thumbnailUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = article.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            loading = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            },
+                            error = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = article.sectionName.uppercase(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = article.sectionName.uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
@@ -123,7 +165,7 @@ fun ArticleDetailScreen(
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = "${article.pillarName} · ${article.sectionName}",
+                            text = article.sectionName,
                             color = Color.White,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold
@@ -138,40 +180,18 @@ fun ArticleDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        text = article.webTitle,
+                        text = article.title,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    Text(
-                        text = article.fields.trailText,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Button(
-                        onClick = { newsViewModel.toggleSaved(articleId) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = if (article.isSaved) {
-                                Icons.Filled.Star
-                            } else {
-                                Icons.Outlined.StarOutline
-                            },
-                            contentDescription = null
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
+                    if (article.trailText.isNotEmpty()) {
                         Text(
-                            text = if (article.isSaved) {
-                                "У збережених (прибрати)"
-                            } else {
-                                "Зберегти статтю"
-                            }
+                            text = article.trailText,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.Medium
                         )
                     }
 
@@ -186,28 +206,30 @@ fun ArticleDetailScreen(
                             modifier = Modifier.padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            DetailMetaRow(label = "Автор:", value = article.fields.byline)
-                            DetailMetaRow(label = "Дата публікації:", value = article.webPublicationDate)
-                            DetailMetaRow(label = "Обсяг:", value = "${article.fields.wordcount} слів")
+                            article.byline?.let { DetailMetaRow(label = "Автор:", value = it) }
+                            DetailMetaRow(label = "Дата публікації:", value = article.publishedAt)
+                            article.readingTimeMinutes?.let { DetailMetaRow(label = "Обсяг:", value = "~$it хв читання") }
                             DetailMetaRow(label = "ID статті:", value = article.id, isMonospace = true)
                             DetailMetaRow(label = "Посилання:", value = article.webUrl, isMonospace = true)
                         }
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    article.bodyText?.let { body ->
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                    Text(
-                        text = "Повний текст матеріалу",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                        Text(
+                            text = "Повний текст матеріалу",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
 
-                    Text(
-                        text = article.fields.bodyText,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                        Text(
+                            text = body,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
                 }
