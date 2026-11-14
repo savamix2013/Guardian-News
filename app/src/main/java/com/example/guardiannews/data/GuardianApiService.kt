@@ -34,7 +34,7 @@ interface GuardianApiService {
     suspend fun getArticleDetails(
         @Path(value = "articleId", encoded = true) articleId: String,
         @Query("api-key") apiKey: String,
-        @Query("show-fields") showFields: String = "thumbnail,trailText,bodyText,byline,wordcount"
+        @Query("show-fields") showFields: String = "thumbnail,trailText,bodyText,byline,word count"
     ): GuardianSingleItemResponse
 
     companion object {
