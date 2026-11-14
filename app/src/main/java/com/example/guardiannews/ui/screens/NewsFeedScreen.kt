@@ -17,10 +17,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Bookmarks
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -52,12 +57,16 @@ import com.example.guardiannews.viewmodel.NewsFeedViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsFeedScreen(
-    newsViewModel: NewsFeedViewModel = viewModel(),
+    newsViewModel: NewsFeedViewModel = viewModel(
+        factory = NewsFeedViewModel.Factory(LocalContext.current)
+    ),
     onItemClick: (String) -> Unit,
+    onOpenFavorites: () -> Unit,
     onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val uiState by newsViewModel.uiState.collectAsState()
+    val favoriteIds by newsViewModel.favoriteIds.collectAsState()
     val focusManager = LocalFocusManager.current
 
     Scaffold(
@@ -65,6 +74,21 @@ fun NewsFeedScreen(
             TopAppBar(
                 title = { Text("Guardian News") },
                 actions = {
+                    IconButton(onClick = onOpenFavorites) {
+                        BadgedBox(
+                            badge = {
+                                if (favoriteIds.isNotEmpty()) {
+                                    Badge { Text(favoriteIds.size.toString()) }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (favoriteIds.isNotEmpty()) Icons.Filled.Bookmarks else Icons.Outlined.Bookmarks,
+                                contentDescription = "Особиста добірка"
+                            )
+                        }
+                    }
+
                     if (onSettingsClick != null) {
                         IconButton(onClick = onSettingsClick) {
                             Icon(
@@ -220,6 +244,8 @@ fun NewsFeedScreen(
                                 ) { article ->
                                     ArticleCard(
                                         article = article,
+                                        isFavorite = article.id in favoriteIds,
+                                        onToggleFavorite = { newsViewModel.toggleFavorite(article.id) },
                                         onClick = { onItemClick(article.id) }
                                     )
                                 }
@@ -241,6 +267,8 @@ fun NewsFeedScreen(
                             ) { article ->
                                 ArticleCard(
                                     article = article,
+                                    isFavorite = article.id in favoriteIds,
+                                    onToggleFavorite = { newsViewModel.toggleFavorite(article.id) },
                                     onClick = { onItemClick(article.id) }
                                 )
                             }

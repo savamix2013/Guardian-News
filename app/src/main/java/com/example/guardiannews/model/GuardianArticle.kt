@@ -46,7 +46,6 @@ data class GuardianFieldsDto(
     val wordcount: String? = null
 )
 
-
 data class GuardianArticle(
     val id: String,
     val sectionId: String,
@@ -85,6 +84,8 @@ fun GuardianArticleDto.toDomain(isEditorsPick: Boolean = false): GuardianArticle
     )
 }
 
+fun GuardianArticleDto.toDomainModel(isEditorsPick: Boolean = false): GuardianArticle =
+    toDomain(isEditorsPick)
 
 fun normalizeImageUrl(rawUrl: String?): String? {
     val cleaned = rawUrl?.trim().orEmpty()

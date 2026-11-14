@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import com.example.guardiannews.viewmodel.FavoritesUiState
 import com.example.guardiannews.viewmodel.NewsFeedViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,10 +55,18 @@ fun ArticleDetailScreen(
     articleId: String,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    newsViewModel: NewsFeedViewModel = viewModel()
+    newsViewModel: NewsFeedViewModel = viewModel(
+        factory = NewsFeedViewModel.Factory(LocalContext.current)
+    )
 ) {
     val uiState by newsViewModel.uiState.collectAsState()
+    val favoriteIds by newsViewModel.favoriteIds.collectAsState()
+    val favoritesUiState by newsViewModel.favoritesUiState.collectAsState()
+
+    val isFavorite = articleId in favoriteIds
+
     val article = uiState.allArticles.find { it.id == articleId }
+        ?: (favoritesUiState as? FavoritesUiState.Success)?.articles?.find { it.id == articleId }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -76,6 +87,29 @@ fun ArticleDetailScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад"
                         )
+                    }
+                },
+                actions = {
+                    if (article != null) {
+                        IconButton(onClick = { newsViewModel.toggleFavorite(articleId) }) {
+                            Icon(
+                                imageVector = if (isFavorite) {
+                                    Icons.Filled.Bookmark
+                                } else {
+                                    Icons.Outlined.BookmarkBorder
+                                },
+                                contentDescription = if (isFavorite) {
+                                    "Прибрати з добірки"
+                                } else {
+                                    "Зберегти в добірку"
+                                },
+                                tint = if (isFavorite) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

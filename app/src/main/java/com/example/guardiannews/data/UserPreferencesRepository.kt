@@ -4,27 +4,42 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "guardian_news_settings")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
 
 class UserPreferencesRepository(private val context: Context) {
 
     companion object {
-        private val DEFAULT_SECTION_KEY = stringPreferencesKey("default_section")
-        const val DEFAULT_SECTION_FALLBACK = "All"
+        private val FAVORITE_IDS_KEY = stringSetPreferencesKey("favorite_article_ids")
     }
 
-    val defaultSectionFlow: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[DEFAULT_SECTION_KEY] ?: DEFAULT_SECTION_FALLBACK
-    }
+    val favoriteIdsFlow: Flow<Set<String>> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[FAVORITE_IDS_KEY] ?: emptySet()
+        }
 
-    suspend fun saveDefaultSection(section: String) {
+    suspend fun toggleFavorite(articleId: String) {
         context.dataStore.edit { preferences ->
-            preferences[DEFAULT_SECTION_KEY] = section
+            val currentIds = preferences[FAVORITE_IDS_KEY] ?: emptySet()
+            preferences[FAVORITE_IDS_KEY] = if (articleId in currentIds) {
+                currentIds - articleId
+            } else {
+                currentIds + articleId
+            }
         }
     }
 }

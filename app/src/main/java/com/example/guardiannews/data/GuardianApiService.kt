@@ -13,12 +13,20 @@ import retrofit2.http.Query
 interface GuardianApiService {
 
     @GET("search")
+    suspend fun getArticlesByIds(
+        @Query("ids") ids: String,
+        @Query("api-key") apiKey: String,
+        @Query("show-fields") showFields: String = "thumbnail,trailText,bodyText,byline,wordcount",
+        @Query("page-size") pageSize: Int = 50
+    ): GuardianSearchResponse
+
+    @GET("search")
     suspend fun searchArticles(
         @Query("api-key") apiKey: String,
         @Query("section") section: String? = null,
         @Query("q") query: String? = null,
         @Query("page-size") pageSize: Int = 20,
-        @Query("show-fields") showFields: String = "thumbnail,trailText"
+        @Query("show-fields") showFields: String = "thumbnail,trailText,byline"
     ): GuardianSearchResponse
 
     @GET("search")
@@ -34,7 +42,7 @@ interface GuardianApiService {
     suspend fun getArticleDetails(
         @Path(value = "articleId", encoded = true) articleId: String,
         @Query("api-key") apiKey: String,
-        @Query("show-fields") showFields: String = "thumbnail,trailText,bodyText,byline,word count"
+        @Query("show-fields") showFields: String = "thumbnail,trailText,bodyText,byline,wordcount"
     ): GuardianSingleItemResponse
 
     companion object {
