@@ -59,7 +59,10 @@ data class GuardianArticle(
     val bodyText: String?,
     val readingTimeMinutes: Int?,
     val isEditorsPick: Boolean = false
-)
+) {
+    val formattedDate: String
+        get() = publishedAt
+}
 
 fun GuardianArticleDto.toDomain(isEditorsPick: Boolean = false): GuardianArticle {
     val words = fields?.wordcount?.toIntOrNull()
